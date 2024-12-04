@@ -1,4 +1,3 @@
-import app
 
 
 class InvalidPermissions(Exception):
@@ -21,16 +20,16 @@ class Calculator:
     def divide(self, x, y):
         self.check_types(x, y)
         if y == 0:
-            raise                                                TypeError("Division by zero is not possible")
+            raise TypeError("Division by zero is not possible")
 
         return x / y
 
     def power(self, x, y):
         self.check_types(x, y)
-        return x ** y
+        return x**y
 
     def check_types(self, x, y):
-        if not isinstance(x, (int, float)) or                                                not isinstance(y, (int, float)):
+        if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
             raise TypeError("Parameters must be numbers")
 
 
