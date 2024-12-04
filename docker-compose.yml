@@ -1,0 +1,10 @@
+services:
+  mock:
+    image: wiremock/wiremock:3.10.0
+    container_name: wiremock
+    volumes:
+      - ./__files:/home/wiremock/__files
+      - ./test/wiremock/mappings/:/home/wiremock/mappings
+    ports:
+      - 8083:8080
+    
