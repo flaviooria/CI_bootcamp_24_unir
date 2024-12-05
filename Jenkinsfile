@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     stages {
-        stage('Build') {
+        stage('Checkout code') {
             steps {
-                git clone "https://github.com/flaviooria/CI_bootcamp_24_unir.git"
+                git "https://github.com/flaviooria/CI_bootcamp_24_unir.git"
             }
         }
     }
