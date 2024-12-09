@@ -24,9 +24,9 @@ pipeline {
       steps {
         sh 'python -m venv ci_venv'
 
-        sh '. $PATH_VENV/activate'
+        sh '. $WORKSPACE/$PATH_VENV/activate'
 
-        sh './$PATH_VENV/pip install -r requirements.txt'
+        sh '$WORKSPACE/$PATH_VENV/pip install -r requirements.txt'
       }
     }
 
@@ -48,21 +48,22 @@ pipeline {
         stage('Run unit test') {
           steps {
             catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-              sh './$PATH_VENV/pytest --junitxml=result-unit.xml test/unit'
+              sh '$WORKSPACE/$PATH_VENV/pytest --junitxml=result-unit.xml test/unit'
             }
           }
         }
 
-        stage('Run flask') {
+        stage('Run flask and wiremock') {
           steps {
-            sh 'nohup ./$PATH_VENV/python app/api.py &'
+            sh '$WORKSPACE/$PATH_VENV/python app/api.py &'
+            sh 'java -jar wiremock-standalone-3.10.0.jar --port 8083 &                                                                                                 '
           }
         }
 
         stage('Run test rest') {
           steps {
             catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-              sh './$PATH_VENV/pytest --junitxml=result-rest.xml test/rest'
+              sh '$WORKSPACE/$PATH_VENV/pytest --junitxml=result-rest.xml test/rest'
             }
           }
         }
@@ -75,4 +76,4 @@ pipeline {
       }
     }
   }
-}
+} 
