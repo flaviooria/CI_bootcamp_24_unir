@@ -2,10 +2,12 @@ pipeline {
     agent none
 
     stages {
-        stage { label 'dev'}
+        stage('Use agent ssh') {
+            agent { label 'dev'}
 
-        steps {
-            sh 'whoami'
+            steps {
+                sh 'whoami'
+            }
         }
     }
 
