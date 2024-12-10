@@ -1,14 +1,50 @@
 pipeline {
     agent none
 
+    environment {
+        PYTHONPATH = '.'
+        PATH_VENV = 'ci_venv/bin'
+    }
+
     stages {
-        stage('Use agent ssh') {
-            agent { label 'dev'}
+        stage('Checkout code') {
+            agent {
+                label 'dev'
+            }
 
             steps {
                 sh 'whoami'
-                sh 'hostname -i'
+                sh 'hostname'
                 sh 'echo $WORKSPACE'
+            }
+        }
+
+        stage('List directories') {
+            agent {
+                label 'dev'
+            }
+
+            steps {
+                sh 'ls -la'
+            }
+        }
+
+        stage('Create virtualenv') {
+            agent {
+                label 'dev'
+            }
+
+            steps {
+                sh 'whoami'
+                sh 'hostname'
+                sh 'echo $WORKSPACE'
+
+
+                sh 'python -m venv ci_venv'
+
+                sh '. $WORKSPACE/$PATH_VENV/activate'
+
+                sh '$WORKSPACE/$PATH_VENV/pip install -r requirements.txt'
             }
         }
     }
