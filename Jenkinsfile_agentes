@@ -40,7 +40,7 @@ pipeline {
                 sh 'echo $WORKSPACE'
 
 
-                sh 'python -m venv ci_venv'
+                sh 'python3 -m venv ci_venv'
 
                 sh '. $WORKSPACE/$PATH_VENV/activate'
 
