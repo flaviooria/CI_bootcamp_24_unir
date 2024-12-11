@@ -1,10 +1,28 @@
 services:
-  mock:
-    image: wiremock/wiremock:3.10.0
-    container_name: wiremock
-    volumes:
-      - ./__files:/home/wiremock/__files
-      - ./test/wiremock/mappings/:/home/wiremock/mappings
+
+  agent-ssh:
+    image: jenkins/ssh-agent-python:latest
+    container_name: docker-agent-ssh
+    environment:
+      - JENKINS_AGENT_SSH_PUBKEY=$RSA_PUB
     ports:
-      - 8083:8080
-    
+      - 2222:22
+    restart: on-failure
+
+
+  jenkins-agent:
+    image: jenkins/inbound-agent
+    container_name: docker-agent-tcp
+    environment:
+      - JENKINS_URL=http://host.docker.internal:8080
+      - JENKINS_AGENT_NAME=docker-agent-tcp
+      - JENKINS_SECRET=$JENKINS_SECRET
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - jenkins-agent-workdir:/home/jenkins/agent
+
+    restart: on-failure
+  
+
+volumes:
+  jenkins-agent-workdir:
