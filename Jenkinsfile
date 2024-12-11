@@ -72,12 +72,12 @@ pipeline {
                         sh 'echo $! > api_PID.txt'
                         sh 'nohup java -jar wiremock-standalone-3.10.0.jar --port 8083 > wiremock.log 2>&1 &'
                         sh 'echo $! > wiremock_PID.txt'
-                        sleep(time: 5, unit: 'SECONDS')
                     }
                 }
 
                 stage('Run test rest') {
                     steps {
+                        sleep(time: 5, unit: 'SECONDS')
                         showAgentInfo()
 
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
