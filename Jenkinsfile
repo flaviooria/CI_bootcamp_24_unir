@@ -131,7 +131,7 @@ pipeline {
         fi
         '''
 
-        deleteDir()
+        cleanWs(skipWhenFailed: true)
       }
     }
 }
