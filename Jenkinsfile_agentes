@@ -1,5 +1,5 @@
 pipeline {
-    agent none
+    agent { label 'dev' }
 
     environment {
         PYTHONPATH = '.'
@@ -8,45 +8,119 @@ pipeline {
 
     stages {
         stage('Checkout code') {
-            agent {
-                label 'dev'
-            }
-
             steps {
-                sh 'whoami'
-                sh 'hostname'
-                sh 'echo $WORKSPACE'
+                showAgentInfo()
+
+                git 'https://github.com/flaviooria/CI_bootcamp_24_unir.git'
             }
         }
 
         stage('List directories') {
-            agent {
-                label 'dev'
-            }
 
             steps {
+                showAgentInfo()
+
                 sh 'ls -la'
             }
         }
 
-        stage('Create virtualenv') {
-            agent {
-                label 'dev'
-            }
+        stage('install dependencies') {
 
             steps {
-                sh 'whoami'
-                sh 'hostname'
-                sh 'echo $WORKSPACE'
-
+                showAgentInfo()
 
                 sh 'python3 -m venv ci_venv'
 
-                sh '. $WORKSPACE/$PATH_VENV/activate'
-
                 sh '$WORKSPACE/$PATH_VENV/pip install -r requirements.txt'
+
             }
         }
-    }
 
+        stage('Build') {
+
+            steps {
+                showAgentInfo()
+
+                echo 'Build ...'
+            }
+        }
+
+        stage('Tests') {
+            parallel {
+                stage('Run unit test') {
+                    
+                    steps {
+                        showAgentInfo()
+
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+
+                            sh '$WORKSPACE/$PATH_VENV/pytest --junitxml=result-unit.xml test/unit'   
+                        }
+
+                        script {
+                            if (fileExists("result-unit.xml")) {
+                                stash name: 'unit-tests', includes: 'result-unit.xml'
+                            }
+                        }
+                    }
+                }
+
+                stage('Run flask and wiremock') {
+                    steps {
+                        showAgentInfo()
+                        sh '$WORKSPACE/$PATH_VENV/python app/api.py &'
+                        sh 'java -jar wiremock-standalone-3.10.0.jar --port 8083 &'
+                    }
+                }
+
+                stage('Run test rest') {
+                    steps {
+                        showAgentInfo()
+
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            sh '$WORKSPACE/$PATH_VENV/pytest --junitxml=result-rest.xml test/rest'
+                        }
+
+                        script {
+                            if (fileExists("result-rest.xml")) {
+                                stash name: 'rest-tests', includes: 'result-rest.xml'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Generate Reports') {
+            agent { label 'master' }
+
+            steps {
+                showAgentInfo()
+
+                script {
+                    try {
+                        unstash 'unit-tests'
+                        unstash 'rest-tests'
+                        
+                    } catch(err) {
+                        echo "Caught: ${err}"
+                    } finally {
+                        echo 'Generating and publishing JUnit test reports...'
+                        junit '**/result-*.xml'
+                    }
+                }
+            }
+        }
+
+    }
+}
+
+def showAgentInfo() {
+    script {
+        sh '''
+        echo "Current user: $(whoami)"
+        echo "Current host: $(hostname)"
+        echo "Workspace: $WORKSPACE"
+        '''
+    }
 }
