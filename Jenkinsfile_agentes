@@ -92,7 +92,7 @@ pipeline {
         }
 
         stage('Generate Reports') {
-            agent { label 'master' }
+            agent { label 'reports' }
 
             steps {
                 showAgentInfo()
