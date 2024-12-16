@@ -132,7 +132,8 @@ pipeline {
           echo 'Wiremock server terminated'
         fi
         '''
-
+        
+        sh 'echo "Clean folders"'
         cleanWs(skipWhenFailed: true)
       }
     }
