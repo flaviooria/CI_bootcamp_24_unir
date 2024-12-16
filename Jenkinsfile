@@ -72,29 +72,12 @@ pipeline {
                         sh 'echo $! > api_PID.txt'
                         sh 'nohup java -jar wiremock-standalone-3.10.0.jar --port 8083 > wiremock.log 2>&1 &'
                         sh 'echo $! > wiremock_PID.txt'
-
-                        // Health checks con tiempo máximo de espera
-                        timeout(time: 1, unit: 'MINUTES') {
-                            script {
-                                def flask_ready = waitUntil(initialRecurrencePeriod: 5000) {
-                                    return sh(script: 'curl --silent --fail http://localhost:5000/health || exit 1', returnStatus: true) == 0
-                                }
-                                def wiremock_ready = waitUntil(initialRecurrencePeriod: 5000) {
-                                    return sh(script: 'curl --silent --fail http://localhost:8083/__admin || exit 1', returnStatus: true) == 0
-                                }
-
-                                if (!flask_ready || !wiremock_ready) {
-                                    error "Flask or Wiremock did not start in time."
-                                }
-                                echo "Flask and Wiremock are ready!"
-                            }
-                        }
-
                     }
                 }
 
                 stage('Run test rest') {
                     steps {
+                        sleep(time: 5, unit: 'SECONDS')
                         showAgentInfo()
 
                         timeout(time: 2, unit: 'MINUTES') {
