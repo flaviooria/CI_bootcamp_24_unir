@@ -68,20 +68,25 @@ pipeline {
                 stage('Run flask and wiremock') {
                     steps {
                         showAgentInfo()
-                        sh 'nohup $WORKSPACE/$PATH_VENV/python app/api.py > api.log 2>&1 &'
-                        sh 'echo $! > api_PID.txt'
-                        sh 'nohup java -jar wiremock-standalone-3.10.0.jar --port 8083 > wiremock.log 2>&1 &'
-                        sh 'echo $! > wiremock_PID.txt'
+
+                        timeout(time: 1, unit: 'MINUTES') {
+                            sh 'nohup $WORKSPACE/$PATH_VENV/python app/api.py > api.log 2>&1 &'
+                            sh 'echo $! > api_PID.txt'
+                            sh 'nohup java -jar wiremock-standalone-3.10.0.jar --port 8083 > wiremock.log 2>&1 &'
+                            sh 'echo $! > wiremock_PID.txt'
+                        }
+
                     }
                 }
 
                 stage('Run test rest') {
                     steps {
-                        sleep(time: 5, unit: 'SECONDS')
                         showAgentInfo()
 
-                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                            sh '$WORKSPACE/$PATH_VENV/pytest --junitxml=result-rest.xml test/rest'
+                        timeout(time: 2, unit: 'MINUTES') {
+                            catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                                sh '$WORKSPACE/$PATH_VENV/pytest --junitxml=result-rest.xml test/rest'
+                            }
                         }
 
                         script {
