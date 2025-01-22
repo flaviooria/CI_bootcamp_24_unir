@@ -1,117 +1,80 @@
 pipeline {
-    agent { label 'dev' }
+    agent any
 
     environment {
         PYTHONPATH = '.'
-        PATH_VENV = 'ci_venv/bin'
+        PATH_VENV = '/opt/venv/bin'
+        PATH_JMETER = '/opt/jmeter/bin'
     }
 
     stages {
+
         stage('Checkout code') {
             steps {
-                showAgentInfo()
-
                 git 'https://github.com/flaviooria/CI_bootcamp_24_unir.git'
+                sh 'echo $WORKSPACE'
             }
         }
-
-        stage('List directories') {
-
+        
+        stage('Run unit test') {
             steps {
-                showAgentInfo()
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    sh '$PATH_VENV/coverage run --branch --source=./app --omit=app/__init__.py,app/api.py -m pytest --junitxml=result-unit.xml test/unit'
+                    sh '$PATH_VENV/coverage xml'
+                }
 
-                sh 'ls -la'
+                junit 'result-unit.xml'
             }
         }
 
-        stage('install dependencies') {
-
+        stage('Static') {
             steps {
-                showAgentInfo()
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    sh '$PATH_VENV/flake8 --format=pylint --exit-zero ./app > flake8.out'
 
-                sh 'python3 -m venv ci_venv'
-
-                sh '$WORKSPACE/$PATH_VENV/pip install -r requirements.txt'
-
+                    recordIssues tools: [flake8(name: 'Flake8', pattern: 'flake8.out', reportEncoding: 'UTF-8')], qualityGates: [[threshold: 8.0, type: 'TOTAL', unstable: true], [threshold: 10.0, type: 'TOTAL', unstable: false]]
+                }
             }
         }
 
-        stage('Build') {
-
+        stage('Security') {
             steps {
-                showAgentInfo()
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    sh '$PATH_VENV/bandit --exit-zero -r . -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}] {severity} {msg}"'
 
-                echo 'Build ...'
+                    recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')], qualityGates: [[integerThreshold: 2, threshold: 2.0, type: 'TOTAL'], [criticality: 'FAILURE', integerThreshold: 4, threshold: 4.0, type: 'TOTAL']]
+                }
             }
         }
 
-        stage('Tests') {
-            parallel {
-                stage('Run unit test') {
+        stage('Coverage') {
+            steps {
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    sh '$PATH_VENV/coverage report'
                     
-                    steps {
-                        showAgentInfo()
-
-                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-
-                            sh '$WORKSPACE/$PATH_VENV/pytest --junitxml=result-unit.xml test/unit'   
-                        }
-
-                        script {
-                            if (fileExists("result-unit.xml")) {
-                                stash name: 'unit-tests', includes: 'result-unit.xml'
-                            }
-                        }
-                    }
+                    cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'coverage.xml', conditionalCoverageTargets: '100, 80, 90', failUnhealthy: false, failUnstable: false, lineCoverageTargets: '100, 85, 95', maxNumberOfBuilds: 0, onlyStable: false, zoomCoverageChart: false
                 }
 
-                stage('Run flask and wiremock') {
-                    steps {
-                        showAgentInfo()
-                        sh '$WORKSPACE/$PATH_VENV/python app/api.py &'
-                        sh 'java -jar wiremock-standalone-3.10.0.jar --port 8083 &'
-                    }
-                }
-
-                stage('Run test rest') {
-                    steps {
-                        showAgentInfo()
-
-                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                            sh '$WORKSPACE/$PATH_VENV/pytest --junitxml=result-rest.xml test/rest'
-                        }
-
-                        script {
-                            if (fileExists("result-rest.xml")) {
-                                stash name: 'rest-tests', includes: 'result-rest.xml'
-                            }
-                        }
-                    }
-                }
             }
         }
 
-        stage('Generate Reports') {
-            agent { label 'reports' }
-
+        stage('Performance') {
             steps {
-                showAgentInfo()
+                sh '$PATH_VENV/python app/api.py &' // Run the app in the background
+                sh 'sleep 3' // Wait for the app to start
 
-                script {
-                    try {
-                        unstash 'unit-tests'
-                        unstash 'rest-tests'
-                        
-                    } catch(err) {
-                        echo "Caught: ${err}"
-                    } finally {
-                        echo 'Generating and publishing JUnit test reports...'
-                        junit '**/result-*.xml'
-                    }
-                }
+                sh '$PATH_JMETER/jmeter -n -t test/jmeter/flask.jmx -f -l flask.jtl'
+
+
+                perfReport sourceDataFiles: 'flask.jtl'
             }
         }
+    }
 
+    post {
+        always {
+            cleanWs()
+        }
     }
 }
 
