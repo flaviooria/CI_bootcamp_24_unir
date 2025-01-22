@@ -62,8 +62,11 @@ def divide(op_1, op_2):
             HEADERS,
         )
     except TypeError as e:
-        return (str(e), http.client.NOT_ACCEPTABLE, HEADERS)
 
+        if util.convert_to_number(op_2) == 0:
+            return (str(e), http.client.NOT_ACCEPTABLE, HEADERS)
+
+        return (str(e), http.client.BAD_REQUEST, HEADERS)
 
 if __name__ == "__main__":
     api_application.run("0.0.0.0", 5000, True)
