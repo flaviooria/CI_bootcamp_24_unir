@@ -62,7 +62,10 @@ def divide(op_1, op_2):
             HEADERS,
         )
     except TypeError as e:
-        return (str(e), http.client.NOT_ACCEPTABLE, HEADERS)
+        if op_2 == "0":
+            return (str(e), http.client.NOT_ACCEPTABLE, HEADERS)
+
+        return (str(e), http.client.BAD_REQUEST, HEADERS)
 
 
 if __name__ == "__main__":
