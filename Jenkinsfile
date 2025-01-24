@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    parameters {
+        choice choices: ['master', 'develop'], name: 'ramas'
+    }
+
+
     environment {
         PYTHONPATH = '.'
         PATH_VENV = '/opt/venv/bin'
@@ -11,7 +16,7 @@ pipeline {
 
         stage('Checkout code') {
             steps {
-                git 'https://github.com/flaviooria/CI_bootcamp_24_unir.git'
+                git url:'https://github.com/flaviooria/CI_bootcamp_24_unir.git', branch: params.ramas
                 sh 'echo $WORKSPACE'
             }
         }
@@ -26,6 +31,19 @@ pipeline {
                 junit 'result-unit.xml'
             }
         }
+
+        stage('Coverage') {
+            steps {
+                sh '$PATH_VENV/coverage report'
+
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    // Formato de baremos cobertura: healthy, unstable, failed => 95, 85, 85 
+                    cobertura coberturaReportFile: 'coverage.xml', conditionalCoverageTargets: '90, 80, 80', lineCoverageTargets: '95,85,85'
+                }
+
+            }
+        }
+
 
         stage('Static') {
             steps {
@@ -42,19 +60,8 @@ pipeline {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                     sh '$PATH_VENV/bandit --exit-zero -r . -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}] {severity} {msg}"'
 
-                    recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')], qualityGates: [[integerThreshold: 2, threshold: 2.0, type: 'TOTAL'], [criticality: 'FAILURE', integerThreshold: 4, threshold: 4.0, type: 'TOTAL']]
+                    recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')], qualityGates: [[unstable: true, threshold: 2.0, type: 'TOTAL'], [unstable: false, threshold: 4.0, type: 'TOTAL']]
                 }
-            }
-        }
-
-        stage('Coverage') {
-            steps {
-                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                    sh '$PATH_VENV/coverage report'
-                    
-                    cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'coverage.xml', conditionalCoverageTargets: '100, 80, 90', failUnhealthy: false, failUnstable: false, lineCoverageTargets: '100, 85, 95', maxNumberOfBuilds: 0, onlyStable: false, zoomCoverageChart: false
-                }
-
             }
         }
 
